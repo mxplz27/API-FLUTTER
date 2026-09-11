@@ -1,11 +1,11 @@
 {
-    "name": "flutter_application_2",
-    "short_name": "flutter_application_2",
+    "name": "Gestor Inmobiliario",
+    "short_name": "Inmobiliaria",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Gestor Inmobiliario: agenda, clientes y ventas del asesor.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
