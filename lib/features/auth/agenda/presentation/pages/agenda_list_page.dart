@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/api/api_client.dart';
 import '../../../../../core/state/agenda_store.dart';
 import '../../../../../core/state/settings_store.dart';
 import '../../../../../core/theme/app_theme.dart';
@@ -24,9 +25,7 @@ class AgendaListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: SafeArea(child: AgendaView(showTitle: true)),
-    );
+    return const Scaffold(body: SafeArea(child: AgendaView(showTitle: true)));
   }
 }
 
@@ -42,6 +41,25 @@ class AgendaView extends StatefulWidget {
 
 class _AgendaViewState extends State<AgendaView> {
   AgendaFilter _filter = AgendaFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    AgendaStore.instance.load();
+  }
+
+  /// Ejecuta una acción contra la API y avisa si falla.
+  Future<void> _run(Future<void> Function() action, {String? success}) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+      if (success != null) {
+        messenger.showSnackBar(SnackBar(content: Text(success)));
+      }
+    } on ApiException catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 
   Future<void> _openForm({Appointment? appointment}) async {
     await Navigator.push<bool>(
@@ -76,10 +94,10 @@ class _AgendaViewState extends State<AgendaView> {
     );
 
     if (shouldDelete != true || !mounted) return;
-    AgendaStore.instance.remove(appointment.id);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Cita eliminada.')));
+    await _run(
+      () => AgendaStore.instance.remove(appointment.id),
+      success: 'Cita eliminada.',
+    );
   }
 
   List<Appointment> _applyFilter(List<Appointment> all) {
@@ -90,9 +108,8 @@ class _AgendaViewState extends State<AgendaView> {
       AgendaFilter.all => all,
       AgendaFilter.today => all.where((item) => item.day == todayDay).toList(),
       AgendaFilter.pending => all.where((item) => item.isPending).toList(),
-      AgendaFilter.done => all
-          .where((item) => item.status == AppointmentStatus.done)
-          .toList(),
+      AgendaFilter.done =>
+        all.where((item) => item.status == AppointmentStatus.done).toList(),
     };
   }
 
@@ -113,71 +130,85 @@ class _AgendaViewState extends State<AgendaView> {
                 constraints: const BoxConstraints(
                   maxWidth: AppSizes.maxContentWidth,
                 ),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
-                  children: [
-                    if (widget.showTitle) ...[
-                      const Text(
-                        'Agenda',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                child: RefreshIndicator(
+                  onRefresh: store.load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+                    children: [
+                      if (widget.showTitle) ...[
+                        const Text(
+                          'Agenda',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Tus visitas, firmas y seguimientos.',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          color: AppColors.textSecondary,
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Tus visitas, firmas y seguimientos.',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 18),
+                      ],
+
+                      _NextAppointmentCard(appointment: store.nextAppointment),
                       const SizedBox(height: 18),
-                    ],
 
-                    _NextAppointmentCard(appointment: store.nextAppointment),
-                    const SizedBox(height: 18),
-
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: AgendaFilter.values.map((filter) {
-                          final isSelected = _filter == filter;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ChoiceChip(
-                              label: Text(filter.label),
-                              selected: isSelected,
-                              showCheckmark: false,
-                              onSelected: (_) =>
-                                  setState(() => _filter = filter),
-                              labelStyle: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppColors.textSecondary,
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: AgendaFilter.values.map((filter) {
+                            final isSelected = _filter == filter;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(filter.label),
+                                selected: isSelected,
+                                showCheckmark: false,
+                                onSelected: (_) =>
+                                    setState(() => _filter = filter),
+                                labelStyle: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.textSecondary,
+                                ),
+                                backgroundColor: AppColors.field,
+                                selectedColor: AppColors.graphite,
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? AppColors.graphite
+                                      : AppColors.border,
+                                ),
                               ),
-                              backgroundColor: AppColors.field,
-                              selectedColor: AppColors.graphite,
-                              side: BorderSide(
-                                color: isSelected
-                                    ? AppColors.graphite
-                                    : AppColors.border,
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          }).toList(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                    if (visible.isEmpty)
-                      _EmptyAgenda(filter: _filter)
-                    else
-                      ..._buildGroupedList(visible, compact),
-                  ],
+                      if (store.error != null) ...[
+                        _LoadError(message: store.error!, onRetry: store.load),
+                        const SizedBox(height: 16),
+                      ],
+
+                      if (store.isLoading && !store.hasLoaded)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (visible.isEmpty && store.hasLoaded)
+                        _EmptyAgenda(filter: _filter)
+                      else
+                        ..._buildGroupedList(visible, compact),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -209,10 +240,7 @@ class _AgendaViewState extends State<AgendaView> {
         currentDay = appointment.day;
         widgets.add(
           Padding(
-            padding: EdgeInsets.only(
-              top: widgets.isEmpty ? 0 : 10,
-              bottom: 10,
-            ),
+            padding: EdgeInsets.only(top: widgets.isEmpty ? 0 : 10, bottom: 10),
             child: Row(
               children: [
                 Text(
@@ -237,15 +265,19 @@ class _AgendaViewState extends State<AgendaView> {
           appointment: appointment,
           compact: compact,
           onEdit: () => _openForm(appointment: appointment),
-          onToggleDone: () => AgendaStore.instance.setStatus(
-            appointment.id,
-            appointment.status == AppointmentStatus.done
-                ? AppointmentStatus.pending
-                : AppointmentStatus.done,
+          onToggleDone: () => _run(
+            () => AgendaStore.instance.setStatus(
+              appointment.id,
+              appointment.status == AppointmentStatus.done
+                  ? AppointmentStatus.pending
+                  : AppointmentStatus.done,
+            ),
           ),
-          onCancel: () => AgendaStore.instance.setStatus(
-            appointment.id,
-            AppointmentStatus.cancelled,
+          onCancel: () => _run(
+            () => AgendaStore.instance.setStatus(
+              appointment.id,
+              AppointmentStatus.cancelled,
+            ),
           ),
           onDelete: () => _confirmDelete(appointment),
         ),
@@ -336,6 +368,42 @@ class _NextAppointmentCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso cuando la agenda no se pudo cargar desde la API.
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 20, color: AppColors.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Reintentar')),
         ],
       ),
     );
