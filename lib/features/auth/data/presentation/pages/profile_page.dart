@@ -31,7 +31,7 @@ class ProfilePage extends StatelessWidget {
 }
 
 /// Contenido del perfil sin Scaffold, reutilizable dentro de otros layouts
-/// (por ejemplo el panel derecho de la pantalla con menú lateral).
+/// (por ejemplo la pestaña "Perfil" del panel principal).
 class ProfileView extends StatelessWidget {
   const ProfileView({super.key});
 

@@ -107,8 +107,8 @@ class SettingsView extends StatelessWidget {
                       items: {
                         for (final minutes in SettingsStore.reminderOptions)
                           minutes: minutes < 60
-                              ? '$minutes minutos antes'
-                              : '${minutes ~/ 60} hora${minutes >= 120 ? 's' : ''} antes',
+                              ? '$minutes min'
+                              : '${minutes ~/ 60} hora${minutes >= 120 ? 's' : ''}',
                       },
                       onChanged: (value) => settings.reminderMinutes = value,
                     ),

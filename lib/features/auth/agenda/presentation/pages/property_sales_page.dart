@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/state/sales_store.dart';
-import '../../../../../core/state/user_store.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/widgets/app_tab_bar.dart';
 import '../../../data/presentation/pages/my_sales_page.dart';
 import '../../../data/presentation/pages/settings_page.dart';
 import '../../../data/presentation/pages/profile_page.dart';
-import '../../../data/presentation/widgets/auth_widgets.dart';
 import 'agenda_list_page.dart';
 
 class PropertySalesPage extends StatefulWidget {
@@ -17,20 +16,32 @@ class PropertySalesPage extends StatefulWidget {
 }
 
 class _PropertySalesPageState extends State<PropertySalesPage> {
-  // 0 = Perfil, 1 = Agenda, 2 = Ventas/Propiedades, 3 = Configuración
+  // 0 = Agenda, 1 = Ventas, 2 = Perfil, 3 = Ajustes
   int _selectedIndex = 0;
   final _formKey = GlobalKey<FormState>();
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const _sectionTitles = [
-    'Perfil',
-    'Agenda',
-    'Ventas y Propiedades',
-    'Configuración',
+  static const _tabs = [
+    AppTabItem(
+      icon: Icons.calendar_month_outlined,
+      activeIcon: Icons.calendar_month_rounded,
+      label: 'Agenda',
+    ),
+    AppTabItem(
+      icon: Icons.home_work_outlined,
+      activeIcon: Icons.home_work_rounded,
+      label: 'Ventas',
+    ),
+    AppTabItem(
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      label: 'Perfil',
+    ),
+    AppTabItem(
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings_rounded,
+      label: 'Ajustes',
+    ),
   ];
-
-  /// Por debajo de este ancho (teléfonos) el menú lateral pasa a un Drawer.
-  static const double _sidebarBreakpoint = 800;
 
   final _clientController = TextEditingController();
   final _propertyNameController = TextEditingController();
@@ -85,304 +96,47 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
     );
   }
 
-  void _select(int index) {
-    setState(() => _selectedIndex = index);
-    _scaffoldKey.currentState?.closeDrawer();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final content = Container(
-          color: AppColors.background,
-          child: _buildMainContent(),
-        );
-
-        if (constraints.maxWidth >= _sidebarBreakpoint) {
-          return Scaffold(
-            key: _scaffoldKey,
-            body: Row(
-              children: [
-                _buildSidebar(),
-                Expanded(child: content),
-              ],
-            ),
-          );
-        }
-
-        return Scaffold(
-          key: _scaffoldKey,
-          appBar: AppBar(title: Text(_sectionTitles[_selectedIndex])),
-          drawer: Drawer(
-            width: 280,
-            backgroundColor: AppColors.graphiteDark,
-            child: _buildSidebar(),
-          ),
-          body: content,
-        );
-      },
-    );
-  }
-
-  // ----------------------------------------------------
-  // MENÚ LATERAL
-  // ----------------------------------------------------
-  Widget _buildSidebar() {
-    return Container(
-      width: 268,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [AppColors.graphiteDark, AppColors.graphite],
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        bottom: false,
+        // IndexedStack conserva el estado de cada pestaña (scroll, formularios).
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            const AgendaView(),
+            _buildPropertyFormView(),
+            const ProfileView(),
+            const SettingsView(),
+          ],
         ),
       ),
-      child: SafeArea(
-        // Material transparente: los ListTile del menú necesitan un Material
-        // por encima del degradado para pintar su tinta.
-        child: Material(
-          type: MaterialType.transparency,
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-
-              // Cabecera de marca
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 44,
-                      width: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(13),
-                        border: Border.all(
-                          color: AppColors.copperSoft.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.real_estate_agent_rounded,
-                        color: AppColors.copperSoft,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'GRUPO INMOBILIARIO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          Text(
-                            'Panel de gestión',
-                            style: TextStyle(
-                              color: AppColors.copperSoft,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-
-              // Tarjeta de usuario
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: AnimatedBuilder(
-                  animation: UserStore.instance,
-                  builder: (context, _) {
-                    final profile = UserStore.instance.profile;
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => _select(0),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.07),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.10),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 19,
-                              backgroundColor: AppColors.copper.withValues(
-                                alpha: 0.22,
-                              ),
-                              child: Text(
-                                profile.initials,
-                                style: const TextStyle(
-                                  color: AppColors.copperSoft,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 11),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    profile.fullName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13.5,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Mi perfil',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: Colors.white.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _buildMenuItem(
-                icon: Icons.person_outline,
-                label: 'Perfil',
-                index: 0,
-              ),
-              _buildMenuItem(
-                icon: Icons.calendar_month_outlined,
-                label: 'Agenda',
-                index: 1,
-              ),
-              _buildMenuItem(
-                icon: Icons.home_work_outlined,
-                label: 'Ventas y Propiedades',
-                index: 2,
-              ),
-              _buildMenuItem(
-                icon: Icons.settings_outlined,
-                label: 'Configuración',
-                index: 3,
-              ),
-
-              const Spacer(),
-              Divider(color: Colors.white.withValues(alpha: 0.10), height: 1),
-
-              // Cerrar sesión
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  leading: const Icon(
-                    Icons.logout_rounded,
-                    color: Color(0xFFE57373),
-                    size: 21,
-                  ),
-                  title: const Text(
-                    'Cerrar sesión',
-                    style: TextStyle(
-                      color: Color(0xFFE57373),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  onTap: () => confirmAndSignOut(context),
-                ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-  }
-
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String label,
-    required int index,
-  }) {
-    final isSelected = _selectedIndex == index;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        tileColor: isSelected ? Colors.white.withValues(alpha: 0.10) : null,
-        leading: Icon(
-          icon,
-          size: 21,
-          color: isSelected
-              ? AppColors.copperSoft
-              : Colors.white.withValues(alpha: 0.62),
-        ),
-        title: Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: isSelected
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.72),
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
-        onTap: () => _select(index),
+      bottomNavigationBar: AppTabBar(
+        items: _tabs,
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }
 
   // ----------------------------------------------------
-  // CONTENIDO
+  // PESTAÑA VENTAS
   // ----------------------------------------------------
-  Widget _buildMainContent() {
-    switch (_selectedIndex) {
-      case 1:
-        return const AgendaView();
-      case 2:
-        return _buildPropertyFormView();
-      case 3:
-        return const SettingsView();
-      default:
-        return const ProfileView();
-    }
-  }
-
   Widget _buildPropertyFormView() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
+          constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Registro de ventas e inmuebles',
+                'Ventas e inmuebles',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
                 ),
@@ -399,7 +153,7 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
               const SizedBox(height: 26),
 
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(AppSizes.radiusCard),
@@ -438,56 +192,45 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: _selectedPropertyType,
-                              isExpanded: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Tipo de inmueble',
-                                prefixIcon: Icon(Icons.category_outlined),
+                      DropdownButtonFormField<String>(
+                        initialValue: _selectedPropertyType,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de inmueble',
+                          prefixIcon: Icon(Icons.category_outlined),
+                        ),
+                        items: _propertyTypes
+                            .map(
+                              (type) => DropdownMenuItem<String>(
+                                value: type,
+                                child: Text(type),
                               ),
-                              items: _propertyTypes
-                                  .map(
-                                    (type) => DropdownMenuItem<String>(
-                                      value: type,
-                                      child: Text(type),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (newValue) => setState(
-                                () => _selectedPropertyType =
-                                    newValue ?? _selectedPropertyType,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _propertyPriceController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Valor de venta (\$)',
-                                hintText: 'Ej. 250000000',
-                                prefixIcon: Icon(Icons.attach_money),
-                              ),
-                              validator: (value) {
-                                final digits =
-                                    value?.replaceAll(
-                                      RegExp(r'[^0-9]'),
-                                      '',
-                                    ) ??
-                                    '';
-                                if (digits.isEmpty) return 'Ingresa el monto';
-                                if (int.parse(digits) <= 0) {
-                                  return 'El monto debe ser mayor a cero';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                            )
+                            .toList(),
+                        onChanged: (newValue) => setState(
+                          () => _selectedPropertyType =
+                              newValue ?? _selectedPropertyType,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      TextFormField(
+                        controller: _propertyPriceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Valor de venta (\$)',
+                          hintText: 'Ej. 250000000',
+                          prefixIcon: Icon(Icons.attach_money),
+                        ),
+                        validator: (value) {
+                          final digits =
+                              value?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+                          if (digits.isEmpty) return 'Ingresa el monto';
+                          if (int.parse(digits) <= 0) {
+                            return 'El monto debe ser mayor a cero';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
 
@@ -515,7 +258,9 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
                       ElevatedButton.icon(
                         onPressed: _registerSale,
                         icon: const Icon(Icons.add_home_work_rounded),
-                        label: const Text('Registrar venta / asignar propiedad'),
+                        label: const Text(
+                          'Registrar venta / asignar propiedad',
+                        ),
                       ),
                     ],
                   ),
@@ -532,10 +277,7 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
                 ),
               ),
               const SizedBox(height: 4),
-              const SizedBox(
-                height: 620,
-                child: MySalesView(),
-              ),
+              const SizedBox(height: 620, child: MySalesView()),
             ],
           ),
         ),

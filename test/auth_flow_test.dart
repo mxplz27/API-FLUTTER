@@ -134,15 +134,13 @@ void main() {
   });
 
   testWidgets('registrar una venta la anade al historial', (tester) async {
-    tester.view.physicalSize = const Size(1400, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    useNarrowPhone(tester, height: 1600);
 
     final antes = SalesStore.instance.totalCount;
     await tester.pumpWidget(wrap(const PropertySalesPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Ventas y Propiedades'));
+    await tester.tap(find.text('Ventas'));
     await tester.pumpAndSettle();
 
     final fields = find.byType(TextFormField);
