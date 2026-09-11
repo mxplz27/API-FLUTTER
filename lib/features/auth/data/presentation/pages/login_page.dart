@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../../../../../core/theme/app_theme.dart';
+import '../widgets/auth_widgets.dart';
 import './forgot_password.dart';
+import '../../../agenda/presentation/pages/property_sales_page.dart';
 import './singup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -10,15 +14,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Controladores de texto
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
-  // Clave global del formulario para validaciones
   final _formKey = GlobalKey<FormState>();
-  
-  // Estado para visibilidad de la contraseña
+
   bool _isPasswordObscured = true;
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -27,166 +28,152 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const PropertySalesPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Ícono principal
-                  Icon(
-                    Icons.lock_person_rounded,
-                    size: 80,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Título e instrucciones
-                  Text(
-                    '¡Bienvenido!',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ingresa tus credenciales para continuar',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Input: Correo Electrónico
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo electrónico',
-                      hintText: 'ejemplo@correo.com',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingresa tu correo';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Ingresa un correo válido';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Input: Contraseña
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _isPasswordObscured,
-                    decoration: InputDecoration(
-                      labelText: 'Contraseña',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordObscured
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordObscured = !_isPasswordObscured;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingresa tu contraseña';
-                      }
-                      if (value.length < 6) {
-                        return 'La contraseña debe tener al menos 6 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Botón: Olvidé mi contraseña
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ForgotPasswordPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('¿Olvidaste tu contraseña?'),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Botón: Iniciar Sesión
-                  ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // Acción al validar formulario correctamente
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Iniciar Sesión',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Enlace: Ir a Registro
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('¿No tienes una cuenta?'),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SingupPage(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Regístrate',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+    return AuthScaffold(
+      icon: Icons.apartment_rounded,
+      title: 'Bienvenido de nuevo',
+      subtitle: 'Accede a tu cartera de propiedades, agenda y clientes.',
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Iniciar sesión',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
             ),
-          ),
+            const SizedBox(height: 4),
+            const Text(
+              'Usa las credenciales de tu cuenta corporativa.',
+              style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 26),
+
+            AuthTextField(
+              label: 'Correo electrónico',
+              controller: _emailController,
+              hintText: 'nombre@inmobiliaria.com',
+              prefixIcon: Icons.mail_outline_rounded,
+              keyboardType: TextInputType.emailAddress,
+              validator: AuthValidators.email,
+            ),
+            const SizedBox(height: 18),
+
+            AuthTextField(
+              label: 'Contraseña',
+              controller: _passwordController,
+              hintText: '••••••••',
+              prefixIcon: Icons.lock_outline_rounded,
+              obscureText: _isPasswordObscured,
+              textInputAction: TextInputAction.done,
+              validator: AuthValidators.password,
+              onFieldSubmitted: (_) => _submit(),
+              suffixIcon: PasswordVisibilityButton(
+                isObscured: _isPasswordObscured,
+                onPressed: () => setState(
+                  () => _isPasswordObscured = !_isPasswordObscured,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            Row(
+              children: [
+                Checkbox(
+                  value: _rememberMe,
+                  onChanged: (value) =>
+                      setState(() => _rememberMe = value ?? false),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Recordarme',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // En su propia línea: junto al check no cabe en pantallas estrechas.
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ForgotPasswordPage(),
+                  ),
+                ),
+                child: const Text('¿Olvidaste tu contraseña?'),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            AuthPrimaryButton(
+              label: 'Iniciar sesión',
+              icon: Icons.arrow_forward_rounded,
+              onPressed: _submit,
+            ),
+            const SizedBox(height: 10),
+
+            AuthFooterLink(
+              message: '¿No tienes una cuenta?',
+              actionLabel: 'Regístrate',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SingupPage()),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            const _TrustNote(),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+/// Nota de confianza: refuerza la seriedad de la marca al pie del formulario.
+class _TrustNote extends StatelessWidget {
+  const _TrustNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.field,
+        borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.verified_user_outlined, size: 18, color: AppColors.graphite),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Conexión segura. Tus datos y los de tus clientes están protegidos.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
   }
