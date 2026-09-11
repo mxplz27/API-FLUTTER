@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/api/api_client.dart';
 import '../../../../../core/state/user_store.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 
-/// Cambio de contraseña con verificación de la contraseña actual.
-/// La contraseña inicial de la sesión de demo es "123456".
+/// Cambio de contraseña. La API verifica la contraseña actual y, si no
+/// coincide, el error se muestra en ese mismo campo.
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
 
@@ -23,6 +24,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   bool _isNewObscured = true;
   bool _isConfirmObscured = true;
   bool _isSaving = false;
+
+  /// Contraseña actual que el servidor rechazó en el último intento.
+  String? _rejectedCurrentPassword;
 
   @override
   void initState() {
@@ -44,16 +48,27 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     FocusScope.of(context).unfocus();
 
     setState(() => _isSaving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-
-    UserStore.instance.changePassword(_newController.text);
-    setState(() => _isSaving = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Contraseña actualizada correctamente.')),
-    );
-    Navigator.pop(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await UserStore.instance.changePassword(
+        currentPassword: _currentController.text,
+        newPassword: _newController.text,
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Contraseña actualizada correctamente.')),
+      );
+      Navigator.pop(context);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      if (error.statusCode == 400 && error.message.contains('actual')) {
+        _rejectedCurrentPassword = _currentController.text;
+        _formKey.currentState!.validate();
+      } else {
+        messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   @override
@@ -101,7 +116,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         if (value == null || value.isEmpty) {
                           return 'Ingresa tu contraseña actual';
                         }
-                        if (!UserStore.instance.isCurrentPassword(value)) {
+                        if (value == _rejectedCurrentPassword) {
                           return 'La contraseña actual no es correcta';
                         }
                         return null;

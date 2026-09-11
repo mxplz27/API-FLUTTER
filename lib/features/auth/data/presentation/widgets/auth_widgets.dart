@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/state/user_store.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../pages/login_page.dart';
 
@@ -465,6 +466,7 @@ Future<void> confirmAndSignOut(BuildContext context) async {
 
   if (shouldSignOut != true) return;
 
+  await UserStore.instance.logout();
   navigator.pushAndRemoveUntil(
     MaterialPageRoute(builder: (context) => const LoginPage()),
     (route) => false,

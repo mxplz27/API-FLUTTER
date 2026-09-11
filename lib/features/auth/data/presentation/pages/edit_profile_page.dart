@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/api/api_client.dart';
 import '../../../../../core/state/user_store.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 
-/// Formulario de edición del perfil. Guarda en [UserStore] y notifica a
-/// todas las pantallas que muestran los datos del asesor.
+/// Formulario de edición del perfil. Guarda en la API a través de
+/// [UserStore], que notifica a todas las pantallas con datos del asesor.
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
 
@@ -49,24 +50,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
     FocusScope.of(context).unfocus();
 
     setState(() => _isSaving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
-
-    UserStore.instance.updateProfile(
-      UserStore.instance.profile.copyWith(
-        fullName: _nameController.text.trim(),
-        email: _emailController.text.trim(),
-        phone: _phoneController.text.trim(),
-        role: _roleController.text.trim(),
-        office: _officeController.text.trim(),
-      ),
-    );
-
-    setState(() => _isSaving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Información actualizada correctamente.')),
-    );
-    Navigator.pop(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await UserStore.instance.updateProfile(
+        UserStore.instance.profile.copyWith(
+          fullName: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          phone: _phoneController.text.trim(),
+          role: _roleController.text.trim(),
+          office: _officeController.text.trim(),
+        ),
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Información actualizada correctamente.')),
+      );
+      Navigator.pop(context);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   @override

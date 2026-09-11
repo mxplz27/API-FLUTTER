@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/api/api_client.dart';
+import '../../../../../core/state/user_store.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 import './forgot_password.dart';
@@ -20,6 +22,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isPasswordObscured = true;
   bool _rememberMe = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -28,13 +31,29 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _submit() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _submit() async {
+    if (_isLoading || !_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const PropertySalesPage()),
-    );
+
+    setState(() => _isLoading = true);
+    try {
+      await UserStore.instance.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        remember: _rememberMe,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PropertySalesPage()),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   @override
@@ -128,6 +147,7 @@ class _LoginPageState extends State<LoginPage> {
             AuthPrimaryButton(
               label: 'Iniciar sesión',
               icon: Icons.arrow_forward_rounded,
+              isLoading: _isLoading,
               onPressed: _submit,
             ),
             const SizedBox(height: 10),

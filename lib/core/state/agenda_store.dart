@@ -199,6 +199,12 @@ class AgendaStore extends ChangeNotifier {
     _appointments.removeWhere((item) => item.id == id);
     notifyListeners();
   }
+
+  /// Vacía la agenda al cerrar sesión.
+  void clear() {
+    _appointments.clear();
+    notifyListeners();
+  }
 }
 
 /// "09:05" en formato de 24 horas.

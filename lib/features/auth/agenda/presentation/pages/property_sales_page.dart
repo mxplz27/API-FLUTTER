@@ -20,6 +20,17 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
   // 0 = Perfil, 1 = Agenda, 2 = Ventas/Propiedades, 3 = Configuración
   int _selectedIndex = 0;
   final _formKey = GlobalKey<FormState>();
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  static const _sectionTitles = [
+    'Perfil',
+    'Agenda',
+    'Ventas y Propiedades',
+    'Configuración',
+  ];
+
+  /// Por debajo de este ancho (teléfonos) el menú lateral pasa a un Drawer.
+  static const double _sidebarBreakpoint = 800;
 
   final _clientController = TextEditingController();
   final _propertyNameController = TextEditingController();
@@ -74,20 +85,43 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
     );
   }
 
+  void _select(int index) {
+    setState(() => _selectedIndex = index);
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          _buildSidebar(),
-          Expanded(
-            child: Container(
-              color: AppColors.background,
-              child: _buildMainContent(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final content = Container(
+          color: AppColors.background,
+          child: _buildMainContent(),
+        );
+
+        if (constraints.maxWidth >= _sidebarBreakpoint) {
+          return Scaffold(
+            key: _scaffoldKey,
+            body: Row(
+              children: [
+                _buildSidebar(),
+                Expanded(child: content),
+              ],
             ),
+          );
+        }
+
+        return Scaffold(
+          key: _scaffoldKey,
+          appBar: AppBar(title: Text(_sectionTitles[_selectedIndex])),
+          drawer: Drawer(
+            width: 280,
+            backgroundColor: AppColors.graphiteDark,
+            child: _buildSidebar(),
           ),
-        ],
-      ),
+          body: content,
+        );
+      },
     );
   }
 
@@ -172,7 +206,7 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
                     final profile = UserStore.instance.profile;
                     return InkWell(
                       borderRadius: BorderRadius.circular(14),
-                      onTap: () => setState(() => _selectedIndex = 0),
+                      onTap: () => _select(0),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -315,7 +349,7 @@ class _PropertySalesPageState extends State<PropertySalesPage> {
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
-        onTap: () => setState(() => _selectedIndex = index),
+        onTap: () => _select(index),
       ),
     );
   }
