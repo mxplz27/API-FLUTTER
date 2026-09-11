@@ -121,6 +121,38 @@ class FakeApi {
         }
         _passwords[email] = body['newPassword'];
         return _json(200, {'message': 'Contraseña actualizada correctamente'});
+
+      case 'GET /tasks':
+        final own = tasks.where((task) => task['owner'] == user['id']).toList()
+          ..sort((a, b) => (a['dateTime'] as String).compareTo(b['dateTime']));
+        return _json(200, own);
+
+      case 'POST /tasks':
+        return _json(201, addTask(user, body));
+    }
+
+    // Rutas /tasks/:id y /tasks/:id/status
+    final match = RegExp(r'^/tasks/([^/]+)(/status)?$').firstMatch(path);
+    if (match != null) {
+      final index = tasks.indexWhere(
+        (task) => task['id'] == match.group(1) && task['owner'] == user['id'],
+      );
+      if (index == -1) return _error(404, 'Tarea no encontrada');
+      final isStatus = match.group(2) != null;
+
+      switch (request.method) {
+        case 'GET' when !isStatus:
+          return _json(200, tasks[index]);
+        case 'PUT' when !isStatus:
+          tasks[index] = {...tasks[index], ...body};
+          return _json(200, tasks[index]);
+        case 'PATCH' when isStatus:
+          tasks[index] = {...tasks[index], 'status': body['status']};
+          return _json(200, tasks[index]);
+        case 'DELETE' when !isStatus:
+          tasks.removeAt(index);
+          return http.Response('', 204);
+      }
     }
 
     return _error(404, 'Ruta no encontrada: $route');

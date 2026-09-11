@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../api/api_client.dart';
+
 /// Tipo de gestión agendada por el asesor.
 enum AppointmentType {
   visit('Visita a inmueble'),
@@ -10,6 +12,9 @@ enum AppointmentType {
   const AppointmentType(this.label);
 
   final String label;
+
+  static AppointmentType fromApi(String? value) => AppointmentType.values
+      .firstWhere((type) => type.name == value, orElse: () => visit);
 }
 
 enum AppointmentStatus {
@@ -20,9 +25,12 @@ enum AppointmentStatus {
   const AppointmentStatus(this.label);
 
   final String label;
+
+  static AppointmentStatus fromApi(String? value) => AppointmentStatus.values
+      .firstWhere((status) => status.name == value, orElse: () => pending);
 }
 
-/// Una cita de la agenda.
+/// Una cita de la agenda (una "tarea" en la API).
 @immutable
 class Appointment {
   const Appointment({
@@ -35,6 +43,20 @@ class Appointment {
     required this.status,
     this.notes = '',
   });
+
+  factory Appointment.fromJson(Map<String, dynamic> json) {
+    return Appointment(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? '',
+      client: json['client'] as String? ?? '',
+      property: json['property'] as String? ?? '',
+      // La API guarda UTC; la agenda se muestra en la hora local.
+      dateTime: DateTime.parse(json['dateTime'] as String).toLocal(),
+      type: AppointmentType.fromApi(json['type'] as String?),
+      status: AppointmentStatus.fromApi(json['status'] as String?),
+      notes: json['notes'] as String? ?? '',
+    );
+  }
 
   final String id;
   final String title;
@@ -49,6 +71,16 @@ class Appointment {
   DateTime get day => DateTime(dateTime.year, dateTime.month, dateTime.day);
 
   bool get isPending => status == AppointmentStatus.pending;
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'client': client,
+    'property': property,
+    'dateTime': dateTime.toUtc().toIso8601String(),
+    'type': type.name,
+    'status': status.name,
+    'notes': notes,
+  };
 
   Appointment copyWith({
     String? title,
@@ -72,67 +104,26 @@ class Appointment {
   }
 }
 
-/// Store en memoria de la agenda. Se reemplazará por la API cuando exista.
+/// Agenda del asesor sincronizada con la API REST (/api/tasks).
 class AgendaStore extends ChangeNotifier {
   AgendaStore._();
 
   static final AgendaStore instance = AgendaStore._();
 
-  int _nextId = 1;
+  final ApiClient _api = ApiClient.instance;
 
-  late final List<Appointment> _appointments = _seed();
+  final List<Appointment> _appointments = [];
+  bool _isLoading = false;
+  bool _hasLoaded = false;
+  String? _error;
 
-  List<Appointment> _seed() {
-    final today = DateTime.now();
-    DateTime at(int daysFromNow, int hour, int minute) => DateTime(
-      today.year,
-      today.month,
-      today.day + daysFromNow,
-      hour,
-      minute,
-    );
+  bool get isLoading => _isLoading;
 
-    return [
-      Appointment(
-        id: 'A-${_nextId++}',
-        title: 'Visita con familia Gómez',
-        client: 'María Gómez',
-        property: 'Apartamento Torre Vista 802',
-        dateTime: at(0, 10, 30),
-        type: AppointmentType.visit,
-        status: AppointmentStatus.pending,
-        notes: 'Confirmar parqueadero de visitantes.',
-      ),
-      Appointment(
-        id: 'A-${_nextId++}',
-        title: 'Firma de promesa de compraventa',
-        client: 'Carlos Rendón',
-        property: 'Casa Campestre Lote 45',
-        dateTime: at(1, 9, 0),
-        type: AppointmentType.signing,
-        status: AppointmentStatus.pending,
-        notes: 'Llevar copia de la escritura y el paz y salvo.',
-      ),
-      Appointment(
-        id: 'A-${_nextId++}',
-        title: 'Seguimiento de oferta',
-        client: 'Inversiones Del Río S.A.S.',
-        property: 'Local Comercial Plaza Norte',
-        dateTime: at(2, 15, 0),
-        type: AppointmentType.call,
-        status: AppointmentStatus.pending,
-      ),
-      Appointment(
-        id: 'A-${_nextId++}',
-        title: 'Avalúo comercial',
-        client: 'Banco Central',
-        property: 'Casa Los Almendros 21',
-        dateTime: at(-1, 11, 0),
-        type: AppointmentType.appraisal,
-        status: AppointmentStatus.done,
-      ),
-    ];
-  }
+  /// Si ya se consultó la API al menos una vez en esta sesión.
+  bool get hasLoaded => _hasLoaded;
+
+  /// Mensaje del último fallo al cargar, o nulo.
+  String? get error => _error;
 
   /// Citas ordenadas cronológicamente.
   List<Appointment> get appointments => List.unmodifiable(
@@ -157,7 +148,32 @@ class AgendaStore extends ChangeNotifier {
     return null;
   }
 
-  Appointment add({
+  /// GET /tasks: trae todas las citas del usuario.
+  Future<void> load() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final data = await _api.get('/tasks') as List<dynamic>;
+      _appointments
+        ..clear()
+        ..addAll(
+          data.map(
+            (item) => Appointment.fromJson(item as Map<String, dynamic>),
+          ),
+        );
+      _hasLoaded = true;
+    } on ApiException catch (error) {
+      _error = error.message;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// POST /tasks
+  Future<Appointment> add({
     required String title,
     required String client,
     required String property,
@@ -165,9 +181,9 @@ class AgendaStore extends ChangeNotifier {
     required AppointmentType type,
     AppointmentStatus status = AppointmentStatus.pending,
     String notes = '',
-  }) {
-    final created = Appointment(
-      id: 'A-${_nextId++}',
+  }) async {
+    final draft = Appointment(
+      id: '',
       title: title,
       client: client,
       property: property,
@@ -176,26 +192,28 @@ class AgendaStore extends ChangeNotifier {
       status: status,
       notes: notes,
     );
+    final data = await _api.post('/tasks', draft.toJson());
+    final created = Appointment.fromJson(data as Map<String, dynamic>);
     _appointments.add(created);
     notifyListeners();
     return created;
   }
 
-  void update(Appointment updated) {
-    final index = _appointments.indexWhere((item) => item.id == updated.id);
-    if (index == -1) return;
-    _appointments[index] = updated;
-    notifyListeners();
+  /// PUT /tasks/:id
+  Future<void> update(Appointment updated) async {
+    final data = await _api.put('/tasks/${updated.id}', updated.toJson());
+    _replace(Appointment.fromJson(data as Map<String, dynamic>));
   }
 
-  void setStatus(String id, AppointmentStatus status) {
-    final index = _appointments.indexWhere((item) => item.id == id);
-    if (index == -1) return;
-    _appointments[index] = _appointments[index].copyWith(status: status);
-    notifyListeners();
+  /// PATCH /tasks/:id/status
+  Future<void> setStatus(String id, AppointmentStatus status) async {
+    final data = await _api.patch('/tasks/$id/status', {'status': status.name});
+    _replace(Appointment.fromJson(data as Map<String, dynamic>));
   }
 
-  void remove(String id) {
+  /// DELETE /tasks/:id
+  Future<void> remove(String id) async {
+    await _api.delete('/tasks/$id');
     _appointments.removeWhere((item) => item.id == id);
     notifyListeners();
   }
@@ -203,6 +221,18 @@ class AgendaStore extends ChangeNotifier {
   /// Vacía la agenda al cerrar sesión.
   void clear() {
     _appointments.clear();
+    _hasLoaded = false;
+    _error = null;
+    notifyListeners();
+  }
+
+  void _replace(Appointment updated) {
+    final index = _appointments.indexWhere((item) => item.id == updated.id);
+    if (index == -1) {
+      _appointments.add(updated);
+    } else {
+      _appointments[index] = updated;
+    }
     notifyListeners();
   }
 }

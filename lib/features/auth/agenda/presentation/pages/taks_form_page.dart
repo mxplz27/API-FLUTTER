@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/api/api_client.dart';
 import '../../../../../core/state/agenda_store.dart';
 import '../../../../../core/state/sales_store.dart' show formatDate;
 import '../../../../../core/theme/app_theme.dart';
@@ -30,14 +31,14 @@ class _TaskFormPageState extends State<TaskFormPage> {
   late AppointmentStatus _status;
   late DateTime _date;
   late TimeOfDay _time;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     final appointment = widget.appointment;
     final start =
-        appointment?.dateTime ??
-        DateTime.now().add(const Duration(hours: 1));
+        appointment?.dateTime ?? DateTime.now().add(const Duration(hours: 1));
 
     _titleController = TextEditingController(text: appointment?.title ?? '');
     _clientController = TextEditingController(text: appointment?.client ?? '');
@@ -80,8 +81,8 @@ class _TaskFormPageState extends State<TaskFormPage> {
     if (picked != null) setState(() => _time = picked);
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _save() async {
+    if (_isSaving || !_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
     final dateTime = DateTime(
@@ -94,20 +95,12 @@ class _TaskFormPageState extends State<TaskFormPage> {
 
     final store = AgendaStore.instance;
     final existing = widget.appointment;
+    final messenger = ScaffoldMessenger.of(context);
 
-    if (existing == null) {
-      store.add(
-        title: _titleController.text.trim(),
-        client: _clientController.text.trim(),
-        property: _propertyController.text.trim(),
-        dateTime: dateTime,
-        type: _type,
-        status: _status,
-        notes: _notesController.text.trim(),
-      );
-    } else {
-      store.update(
-        existing.copyWith(
+    setState(() => _isSaving = true);
+    try {
+      if (existing == null) {
+        await store.add(
           title: _titleController.text.trim(),
           client: _clientController.text.trim(),
           property: _propertyController.text.trim(),
@@ -115,11 +108,29 @@ class _TaskFormPageState extends State<TaskFormPage> {
           type: _type,
           status: _status,
           notes: _notesController.text.trim(),
-        ),
-      );
+        );
+      } else {
+        await store.update(
+          existing.copyWith(
+            title: _titleController.text.trim(),
+            client: _clientController.text.trim(),
+            property: _propertyController.text.trim(),
+            dateTime: dateTime,
+            type: _type,
+            status: _status,
+            notes: _notesController.text.trim(),
+          ),
+        );
+      }
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           existing == null ? 'Cita agendada.' : 'Cita actualizada.',
@@ -284,7 +295,8 @@ class _TaskFormPageState extends State<TaskFormPage> {
                       maxLines: 3,
                       style: const TextStyle(fontSize: 15),
                       decoration: const InputDecoration(
-                        hintText: 'Documentos a llevar, acuerdos, recordatorios…',
+                        hintText:
+                            'Documentos a llevar, acuerdos, recordatorios…',
                       ),
                     ),
                     const SizedBox(height: 28),
@@ -294,6 +306,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
                           ? 'Guardar cambios'
                           : 'Agendar cita',
                       icon: Icons.check_rounded,
+                      isLoading: _isSaving,
                       onPressed: _save,
                     ),
                     const SizedBox(height: 10),

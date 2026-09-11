@@ -237,7 +237,9 @@ class _ActionsMenu extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: 10),
-              Text(isDone ? 'Marcar pendiente' : 'Marcar completada'),
+              Flexible(
+                child: Text(isDone ? 'Marcar pendiente' : 'Marcar completada'),
+              ),
             ],
           ),
         ),
@@ -247,7 +249,7 @@ class _ActionsMenu extends StatelessWidget {
             children: [
               Icon(Icons.edit_outlined, size: 18),
               SizedBox(width: 10),
-              Text('Editar'),
+              Flexible(child: Text('Editar')),
             ],
           ),
         ),
@@ -258,7 +260,7 @@ class _ActionsMenu extends StatelessWidget {
               children: [
                 Icon(Icons.event_busy_outlined, size: 18),
                 SizedBox(width: 10),
-                Text('Cancelar cita'),
+                Flexible(child: Text('Cancelar cita')),
               ],
             ),
           ),
@@ -268,7 +270,12 @@ class _ActionsMenu extends StatelessWidget {
             children: [
               Icon(Icons.delete_outline, size: 18, color: AppColors.error),
               SizedBox(width: 10),
-              Text('Eliminar', style: TextStyle(color: AppColors.error)),
+              Flexible(
+                child: Text(
+                  'Eliminar',
+                  style: TextStyle(color: AppColors.error),
+                ),
+              ),
             ],
           ),
         ),
