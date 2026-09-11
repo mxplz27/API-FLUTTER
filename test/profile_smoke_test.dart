@@ -6,15 +6,38 @@ import 'package:flutter_application_2/core/theme/app_theme.dart';
 import 'package:flutter_application_2/features/auth/data/presentation/pages/login_page.dart';
 import 'package:flutter_application_2/features/auth/data/presentation/pages/profile_page.dart';
 
+import 'support/fake_api.dart';
+
 void main() {
+  late FakeApi api;
+
+  setUp(() async {
+    api = await installFakeApi();
+    await signInDemoUser(api);
+  });
+
   Widget app() => MaterialApp(theme: AppTheme.light, home: const ProfilePage());
 
-  testWidgets('editar informacion guarda y se refleja en el perfil', (
-    tester,
-  ) async {
+  void useTallPhone(WidgetTester tester) {
     tester.view.physicalSize = const Size(500, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
+  }
+
+  testWidgets('el perfil muestra los datos del usuario de la API', (
+    tester,
+  ) async {
+    useTallPhone(tester);
+    await tester.pumpWidget(app());
+
+    expect(find.text('Aprendiz SENA'), findsWidgets);
+    expect(find.text('aprendiz@sena.edu.co'), findsWidgets);
+  });
+
+  testWidgets('editar informacion guarda en la API y se refleja en el perfil', (
+    tester,
+  ) async {
+    useTallPhone(tester);
 
     await tester.pumpWidget(app());
     await tester.tap(find.text('Editar información'));
@@ -22,18 +45,16 @@ void main() {
 
     await tester.enterText(find.byType(TextFormField).first, 'Laura Ospina');
     await tester.tap(find.text('Guardar cambios'));
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
 
     expect(UserStore.instance.profile.fullName, 'Laura Ospina');
     expect(find.text('Laura Ospina'), findsOneWidget);
   });
 
-  testWidgets('cambiar contrasena valida la actual y la actualiza', (
+  testWidgets('cambiar contrasena valida la actual en la API y la actualiza', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(500, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    useTallPhone(tester);
 
     await tester.pumpWidget(app());
     await tester.tap(find.text('Cambiar contraseña'));
@@ -50,15 +71,13 @@ void main() {
 
     await tester.enterText(fields.at(0), '123456');
     await tester.tap(find.text('Actualizar contraseña'));
-    await tester.pumpAndSettle(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
 
-    expect(UserStore.instance.isCurrentPassword('nueva1234'), isTrue);
+    expect(api.passwordFor('aprendiz@sena.edu.co'), 'nueva1234');
   });
 
   testWidgets('mis ventas muestra las operaciones registradas', (tester) async {
-    tester.view.physicalSize = const Size(500, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    useTallPhone(tester);
 
     SalesStore.instance.addSale(
       client: 'Cliente Test',
@@ -78,9 +97,7 @@ void main() {
   testWidgets('cerrar sesion pide confirmacion y vuelve al login', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(500, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+    useTallPhone(tester);
 
     await tester.pumpWidget(app());
     await tester.tap(find.byIcon(Icons.logout_rounded).first);
@@ -99,5 +116,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginPage), findsOneWidget);
+    expect(UserStore.instance.isAuthenticated, isFalse);
   });
 }

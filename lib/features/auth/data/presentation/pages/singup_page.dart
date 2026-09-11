@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/api/api_client.dart';
+import '../../../../../core/state/user_store.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../widgets/auth_widgets.dart';
 
@@ -21,6 +23,7 @@ class _SingupPageState extends State<SingupPage> {
   bool _isPasswordObscured = true;
   bool _isConfirmObscured = true;
   bool _acceptedTerms = false;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -32,7 +35,8 @@ class _SingupPageState extends State<SingupPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isLoading) return;
     final isFormValid = _formKey.currentState!.validate();
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -45,10 +49,28 @@ class _SingupPageState extends State<SingupPage> {
     if (!isFormValid) return;
 
     FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cuenta creada correctamente.')),
-    );
-    Navigator.pop(context);
+
+    setState(() => _isLoading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await UserStore.instance.register(
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Cuenta creada correctamente. Ya puedes iniciar sesión.'),
+        ),
+      );
+      Navigator.pop(context);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   @override
@@ -181,6 +203,7 @@ class _SingupPageState extends State<SingupPage> {
             AuthPrimaryButton(
               label: 'Crear cuenta',
               icon: Icons.arrow_forward_rounded,
+              isLoading: _isLoading,
               onPressed: _submit,
             ),
             const SizedBox(height: 10),

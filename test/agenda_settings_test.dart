@@ -8,6 +8,8 @@ import 'package:flutter_application_2/features/auth/data/presentation/pages/logi
 import 'package:flutter_application_2/features/auth/data/presentation/pages/settings_page.dart';
 import 'package:flutter_application_2/main.dart';
 
+import 'support/fake_api.dart';
+
 void usePhone(WidgetTester tester, {Size size = const Size(400, 900)}) {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -17,6 +19,8 @@ void usePhone(WidgetTester tester, {Size size = const Size(400, 900)}) {
 Widget wrap(Widget home) => MaterialApp(theme: AppTheme.light, home: home);
 
 void main() {
+  setUp(installFakeApi);
+
   testWidgets('la app aterriza en el inicio de sesion', (tester) async {
     usePhone(tester);
     await tester.pumpWidget(const MyApp());
